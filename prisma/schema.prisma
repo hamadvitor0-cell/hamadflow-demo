@@ -1,0 +1,427 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ClientType {
+  PESSOA_FISICA
+  EMPRESA
+  AGENCIA
+  OUTRO
+}
+
+enum ClientSource {
+  INDICACAO
+  INSTAGRAM
+  WHATSAPP
+  SITE
+  OUTRO
+}
+
+enum ClientStatus {
+  LEAD
+  ATIVO
+  INATIVO
+}
+
+enum Complexity {
+  BAIXA
+  MEDIA
+  ALTA
+}
+
+enum ProposalStatus {
+  RASCUNHO
+  ENVIADA
+  VISUALIZADA
+  APROVADA
+  RECUSADA
+  EXPIRADA
+}
+
+enum ContractStatus {
+  RASCUNHO
+  ENVIADO
+  AGUARDANDO_ACEITE
+  ACEITO
+  RECUSADO
+  CANCELADO
+}
+
+enum ProjectStatus {
+  ORCAMENTO
+  APROVADO
+  AGUARDANDO_CONTRATO
+  EM_DESENVOLVIMENTO
+  AGUARDANDO_REVISAO
+  AJUSTES
+  ENTREGUE
+  FINALIZADO
+  CANCELADO
+}
+
+enum LeadStatus {
+  NOVO
+  EM_ANALISE
+  CONTATADO
+  CONVERTIDO
+  RECUSADO
+  ARQUIVADO
+}
+
+enum TaskStatus {
+  PENDENTE
+  EM_ANDAMENTO
+  CONCLUIDA
+}
+
+enum Priority {
+  BAIXA
+  MEDIA
+  ALTA
+}
+
+enum PaymentStatus {
+  PENDENTE
+  PAGO
+  ATRASADO
+  CANCELADO
+}
+
+enum PaymentMethod {
+  PIX
+  BOLETO
+  CARTAO
+  TRANSFERENCIA
+  DINHEIRO
+  OUTRO
+}
+
+enum AuthorType {
+  FREELANCER
+  CLIENTE
+  SISTEMA
+}
+
+enum EntityType {
+  PROPOSAL
+  CONTRACT
+  PROJECT
+}
+
+enum AiGenerationType {
+  BRIEFING
+  PROPOSAL
+  CONTRACT
+  PRICE
+  RISK
+  CLIENT_MESSAGE
+  PORTFOLIO_REQUEST
+}
+
+enum AiGenerationStatus {
+  MOCK
+  SUCCESS
+  ERROR
+  FALLBACK
+}
+
+model User {
+  id           String            @id @default(cuid())
+  name         String
+  email        String            @unique
+  passwordHash String
+  brandName    String
+  phone        String?
+  website      String?
+  document     String?
+  logoUrl      String?
+  pixKey       String?
+  footerText   String?
+  currency     String            @default("BRL")
+  clients      Client[]
+  briefings    Briefing[]
+  proposals    Proposal[]
+  contracts    Contract[]
+  projects     Project[]
+  leads        Lead[]
+  tasks        Task[]
+  payments     Payment[]
+  aiLogs       AiGenerationLog[]
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+}
+
+model Client {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  company   String?
+  email     String
+  phone     String?
+  document  String?
+  type      ClientType   @default(EMPRESA)
+  source    ClientSource @default(INDICACAO)
+  status    ClientStatus @default(LEAD)
+  notes     String?
+  briefings Briefing[]
+  proposals Proposal[]
+  contracts Contract[]
+  projects  Project[]
+  leads     Lead[]       @relation("LeadClient")
+  payments  Payment[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([userId])
+}
+
+model Briefing {
+  id                String     @id @default(cuid())
+  userId            String
+  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId          String
+  client            Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  title             String
+  rawInput          String?
+  projectType       String
+  objective         String
+  targetAudience    String?
+  pages             String[]   @default([])
+  features          String[]   @default([])
+  optionalFeatures  String[]   @default([])
+  missingInfo       String[]   @default([])
+  risks             String[]   @default([])
+  suggestedTimeline String?
+  complexity        Complexity @default(MEDIA)
+  suggestedPriceMin Decimal    @default(0) @db.Decimal(12, 2)
+  suggestedPriceMax Decimal    @default(0) @db.Decimal(12, 2)
+  nextQuestions     String[]   @default([])
+  proposals         Proposal[]
+  leads             Lead[]     @relation("LeadBriefing")
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  @@index([userId])
+  @@index([clientId])
+}
+
+model Proposal {
+  id              String         @id @default(cuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId        String
+  client          Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  briefingId      String?
+  briefing        Briefing?      @relation(fields: [briefingId], references: [id], onDelete: SetNull)
+  title           String
+  summary         String
+  includedScope   String[]       @default([])
+  excludedScope   String[]       @default([])
+  deliverables    String[]       @default([])
+  milestones      String[]       @default([])
+  timeline        String
+  totalPrice      Decimal        @db.Decimal(12, 2)
+  paymentTerms    String
+  validUntil      DateTime?
+  notes           String?
+  status          ProposalStatus @default(RASCUNHO)
+  publicToken     String         @unique
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  contracts       Contract[]
+  projects        Project[]
+  leads           Lead[]         @relation("LeadProposal")
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([userId])
+  @@index([clientId])
+  @@index([briefingId])
+}
+
+model Contract {
+  id                         String         @id @default(cuid())
+  userId                     String
+  user                       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId                   String
+  client                     Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  proposalId                 String?
+  proposal                   Proposal?      @relation(fields: [proposalId], references: [id], onDelete: SetNull)
+  title                      String
+  contractorData             String
+  clientData                 String
+  object                     String
+  scope                      String
+  totalPrice                 Decimal        @db.Decimal(12, 2)
+  paymentTerms               String
+  deadline                   String
+  includedRevisions          Int            @default(2)
+  freelancerResponsibilities String[]       @default([])
+  clientResponsibilities     String[]       @default([])
+  cancellationTerms          String
+  penaltyTerms               String?
+  rightsAndOwnership         String
+  supportTerms               String
+  additionalClauses          String[]       @default([])
+  legalDisclaimer            String         @default("Este contrato é um modelo gerado automaticamente para fins de organização comercial e não substitui orientação jurídica profissional.")
+  status                     ContractStatus @default(RASCUNHO)
+  publicToken                String         @unique
+  acceptedAt                 DateTime?
+  rejectedAt                 DateTime?
+  rejectionReason            String?
+  acceptedIp                 String?
+  acceptedUserAgent          String?
+  projects                   Project[]
+  createdAt                  DateTime       @default(now())
+  updatedAt                  DateTime       @updatedAt
+
+  @@index([userId])
+  @@index([clientId])
+  @@index([proposalId])
+}
+
+model Project {
+  id          String        @id @default(cuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId    String
+  client      Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  proposalId  String?
+  proposal    Proposal?     @relation(fields: [proposalId], references: [id], onDelete: SetNull)
+  contractId  String?
+  contract    Contract?     @relation(fields: [contractId], references: [id], onDelete: SetNull)
+  name        String
+  description String
+  status      ProjectStatus @default(ORCAMENTO)
+  startDate   DateTime?
+  dueDate     DateTime?
+  value       Decimal       @db.Decimal(12, 2)
+  publicToken String        @unique
+  links       String[]      @default([])
+  notes       String?
+  leads       Lead[]        @relation("LeadProject")
+  tasks       Task[]
+  payments    Payment[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([clientId])
+  @@index([proposalId])
+  @@index([contractId])
+}
+
+model Lead {
+  id                  String     @id @default(cuid())
+  userId              String
+  user                User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                String
+  isCompany           Boolean    @default(false)
+  companyName         String?
+  email               String?
+  phone               String?
+  projectName         String
+  projectType         String
+  budgetRange         String?
+  message             String
+  source              String     @default("demo")
+  status              LeadStatus @default(NOVO)
+  convertedClientId   String?
+  convertedClient     Client?    @relation("LeadClient", fields: [convertedClientId], references: [id], onDelete: SetNull)
+  convertedBriefingId String?
+  convertedBriefing   Briefing?  @relation("LeadBriefing", fields: [convertedBriefingId], references: [id], onDelete: SetNull)
+  convertedProposalId String?
+  convertedProposal   Proposal?  @relation("LeadProposal", fields: [convertedProposalId], references: [id], onDelete: SetNull)
+  convertedProjectId  String?
+  convertedProject    Project?   @relation("LeadProject", fields: [convertedProjectId], references: [id], onDelete: SetNull)
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([source])
+  @@index([convertedClientId])
+  @@index([convertedBriefingId])
+  @@index([convertedProposalId])
+  @@index([convertedProjectId])
+}
+
+model Task {
+  id          String     @id @default(cuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId   String
+  project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  status      TaskStatus @default(PENDENTE)
+  priority    Priority   @default(MEDIA)
+  dueDate     DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([userId])
+  @@index([projectId])
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId    String
+  client      Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  projectId   String?
+  project     Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  description String
+  amount      Decimal       @db.Decimal(12, 2)
+  dueDate     DateTime
+  paidAt      DateTime?
+  status      PaymentStatus @default(PENDENTE)
+  method      PaymentMethod @default(PIX)
+  notes       String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([clientId])
+  @@index([projectId])
+}
+
+model Comment {
+  id         String     @id @default(cuid())
+  userId     String?
+  clientId   String?
+  entityType EntityType
+  entityId   String
+  authorType AuthorType
+  authorName String
+  content    String
+  createdAt  DateTime   @default(now())
+
+  @@index([userId])
+  @@index([entityType, entityId])
+}
+
+model AiGenerationLog {
+  id        String             @id @default(cuid())
+  userId    String
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      AiGenerationType
+  provider  String             @default("mock")
+  input     Json
+  output    Json?
+  model     String?
+  status    AiGenerationStatus
+  error     String?
+  createdAt DateTime           @default(now())
+
+  @@index([userId])
+  @@index([type])
+}
