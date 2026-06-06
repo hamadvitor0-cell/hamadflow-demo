@@ -1,7 +1,10 @@
-import "dotenv/config";
+import { config } from "dotenv";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { resetDemoData } from "../src/lib/demo-data";
+
+config({ path: ".env.local", quiet: true });
+config({ quiet: true });
 
 if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL nao configurada.");
